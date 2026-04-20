@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inmaculada Coffee Farms – Sales Dashboard 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="data.js"></script>
+<style>
+  :root {
+    /* Brand palette – primary */
+    --bone:        #e6e2da;
+    --beige:       #dfd7c3;
+    --light-brown: #948149;
+    --golden-brown:#6e5c39;
+    --dark-brown:  #221f20;
+
+    /* Product-line secondary colors */
+    --fellows-farms:  #2e4236;
+    --exotics:        #af2d00;
+    --striking:       #10162b;
+
+    /* UI helpers */
+    --cream:       #f5f2ec;
+    --sand:        #e0d8cc;
+    --text-dark:   #221f20;
+    --text-mid:    #6e5c39;
+    --text-light:  #948149;
+    --white:       #fdfcfa;
+    --shadow:      rgba(34,31,32,0.08);
+
+    /* Status colors */
+    --paid-bg:    #d8e8df; --paid-fg:    #2e4236;
+    --shipped-bg: #e8dfd3; --shipped-fg: #6e5c39;
+    --inv-bg:     #f9f0e0; --inv-fg:     #948149;
+    --pend-bg:    #f5e8e4; --pend-fg:    #af2d00;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Jost', system-ui, sans-serif;
+    background: var(--cream);
+    color: var(--text-dark);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── PASSWORD GATE ─────────────────────────────── */
+  #pw-gate {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--dark-brown);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #pw-gate.hidden { display: none; }
+  .pw-box {
+    background: var(--bone); border-radius: 4px; padding: 52px 56px;
+    max-width: 420px; width: 92%; text-align: center;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+  }
+  .pw-logo { font-size: 2.6rem; margin-bottom: 6px; letter-spacing: 3px; color: var(--golden-brown); font-family: 'Cormorant Garamond', serif; font-weight: 300; }
+  .pw-title { font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 600; color: var(--dark-brown); margin-bottom: 4px; letter-spacing: 2px; text-transform: uppercase; }
+  .pw-sub { font-size: 0.75rem; color: var(--text-light); margin-bottom: 32px; letter-spacing: 1.5px; text-transform: uppercase; }
+  .pw-field-wrap { position: relative; margin-bottom: 12px; }
+  .pw-input {
+    width: 100%; padding: 13px 44px 13px 18px;
+    border: 1px solid var(--sand); border-radius: 2px;
+    font-size: 0.95rem; color: var(--text-dark); font-family: 'Jost', sans-serif;
+    background: var(--white); outline: none; transition: border-color 0.2s; letter-spacing: 2px;
+  }
+  .pw-input:focus { border-color: var(--light-brown); }
+  .pw-input.error { border-color: var(--exotics); animation: shake 0.35s ease; }
+  .pw-toggle { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1rem; opacity: 0.45; padding: 0; }
+  .pw-toggle:hover { opacity: 0.8; }
+  .pw-btn {
+    width: 100%; padding: 13px; background: var(--golden-brown); color: var(--bone);
+    border: none; border-radius: 2px; font-family: 'Jost', sans-serif; font-size: 0.82rem;
+    font-weight: 500; cursor: pointer; letter-spacing: 2px; text-transform: uppercase;
+    transition: background 0.2s; margin-bottom: 10px;
+  }
+  .pw-btn:hover { background: var(--dark-brown); }
+  .pw-error { font-size: 0.78rem; color: var(--exotics); min-height: 18px; margin-top: -4px; }
+  .pw-footer { font-size: 0.68rem; color: var(--text-light); margin-top: 20px; letter-spacing: 1px; text-transform: uppercase; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-7px); }
+    40% { transform: translateX(7px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+  #dashboard-content { display: none; }
+  #dashboard-content.unlocked { display: block; }
+
+  /* ── HEADER ────────────────────────────────────── */
+  .header {
+    background: var(--dark-brown);
+    color: var(--bone);
+    padding: 18px 32px;
+    display: flex; align-items: center; gap: 18px;
+    border-bottom: 1px solid rgba(148,129,73,0.3);
+  }
+  .header-brand {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .header-icon {
+    width: 42px; height: 42px;
+    background: var(--light-brown); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .header-title h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.3rem; font-weight: 600;
+    letter-spacing: 2px; text-transform: uppercase;
+  }
+  .header-title p {
+    font-size: 0.68rem; opacity: 0.6;
+    letter-spacing: 2px; text-transform: uppercase; margin-top: 2px;
+  }
+  .header-right { margin-left: auto; font-size: 0.72rem; opacity: 0.6; letter-spacing: 1px; text-transform: uppercase; }
+
+  /* ── GOAL SECTION ─────────────────────────────── */
+  .goal-section {
+    background: var(--golden-brown);
+    color: var(--bone);
+    padding: 22px 32px 26px;
+  }
+  .goal-label {
+    font-size: 0.65rem; font-weight: 500; letter-spacing: 2.5px;
+    text-transform: uppercase; opacity: 0.75; margin-bottom: 16px;
+  }
+  .goal-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 24px; align-items: start; }
+  .goal-bar-labels { display: flex; justify-content: space-between; font-size: 0.7rem; opacity: 0.8; margin-bottom: 8px; }
+  .goal-bar-track { background: rgba(255,255,255,0.18); border-radius: 2px; height: 8px; overflow: hidden; position: relative; }
+  .goal-bar-fill { height: 100%; border-radius: 2px; position: absolute; top: 0; left: 0; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
+  .goal-bar-fill.committed { background: var(--bone); }
+  .goal-bar-fill.invoiced { background: var(--light-brown); }
+  .goal-bar-fill.paid { background: rgba(255,255,255,0.55); }
+  .goal-legend { display: flex; gap: 18px; margin-top: 10px; flex-wrap: wrap; }
+  .goal-legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.68rem; opacity: 0.85; }
+  .goal-legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .goal-stat-label { font-size: 0.65rem; opacity: 0.65; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 5px; }
+  .goal-stat-value { font-family: 'Cormorant Garamond', serif; font-size: 1.6rem; font-weight: 600; line-height: 1; }
+  .goal-stat-pct { display: inline-block; background: rgba(255,255,255,0.15); border-radius: 2px; padding: 2px 8px; font-size: 0.68rem; margin-top: 5px; }
+  .goal-stat-sub { font-size: 0.68rem; opacity: 0.6; margin-top: 4px; }
+
+  /* ── FILTERS ──────────────────────────────────── */
+  .filters-bar {
+    background: var(--white);
+    border-bottom: 1px solid var(--sand);
+    padding: 12px 32px;
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px var(--shadow);
+  }
+  .filter-group { display: flex; flex-direction: column; gap: 3px; position: relative; }
+  .filter-group label {
+    font-size: 0.62rem; font-weight: 500; color: var(--text-light);
+    text-transform: uppercase; letter-spacing: 1.5px;
+  }
+  .ms-trigger {
+    padding: 7px 11px; border: 1px solid var(--sand); border-radius: 2px;
+    background: var(--cream); font-size: 0.8rem; color: var(--text-dark);
+    min-width: 135px; cursor: pointer; display: flex; justify-content: space-between;
+    align-items: center; gap: 6px; user-select: none; transition: border-color 0.2s;
+    font-family: 'Jost', sans-serif;
+  }
+  .ms-trigger:hover, .ms-trigger.open { border-color: var(--light-brown); }
+  .ms-trigger .arrow { font-size: 0.6rem; opacity: 0.5; transition: transform 0.2s; }
+  .ms-trigger.open .arrow { transform: rotate(180deg); }
+  .ms-trigger .count-badge {
+    background: var(--golden-brown); color: var(--bone);
+    border-radius: 2px; padding: 1px 6px; font-size: 0.62rem; margin-left: 2px;
+  }
+  .ms-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; min-width: 190px;
+    background: var(--white); border: 1px solid var(--sand); border-radius: 2px;
+    box-shadow: 0 8px 24px var(--shadow); z-index: 200;
+    display: none; max-height: 270px; overflow-y: auto;
+  }
+  .ms-dropdown.open { display: block; }
+  .ms-option {
+    display: flex; align-items: center; gap: 8px; padding: 8px 13px;
+    cursor: pointer; font-size: 0.8rem; transition: background 0.1s;
+  }
+  .ms-option:hover { background: var(--cream); }
+  .ms-option input[type=checkbox] { accent-color: var(--golden-brown); width: 13px; height: 13px; cursor: pointer; }
+  .ms-option.select-all { border-bottom: 1px solid var(--sand); font-weight: 600; font-size: 0.75rem; color: var(--text-light); }
+  .btn-reset {
+    padding: 7px 18px; background: var(--golden-brown); color: var(--bone);
+    border: none; border-radius: 2px; font-family: 'Jost', sans-serif;
+    font-size: 0.72rem; font-weight: 500; cursor: pointer; letter-spacing: 1.5px;
+    text-transform: uppercase; transition: background 0.2s; white-space: nowrap; align-self: flex-end;
+  }
+  .btn-reset:hover { background: var(--dark-brown); }
+
+  /* ── MAIN ─────────────────────────────────────── */
+  .main { padding: 24px 32px; }
+
+  /* ── SECTION LABEL ────────────────────────────── */
+  .section-label {
+    font-size: 0.62rem; font-weight: 500; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--text-light);
+    margin-bottom: 12px; margin-top: 6px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--sand);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::before { content: ''; width: 18px; height: 1px; background: var(--light-brown); }
+
+  /* ── KPI ──────────────────────────────────────── */
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .kpi-card {
+    background: var(--white); border-radius: 2px; padding: 18px 20px;
+    box-shadow: 0 1px 6px var(--shadow); border-top: 2px solid var(--beige);
+    transition: transform 0.15s;
+  }
+  .kpi-card:hover { transform: translateY(-2px); }
+  .kpi-card.k-paid { border-top-color: var(--fellows-farms); }
+  .kpi-card.k-shipped { border-top-color: var(--golden-brown); }
+  .kpi-card.k-invoiced { border-top-color: var(--light-brown); }
+  .kpi-card.k-pending { border-top-color: var(--exotics); }
+  .kpi-card.k-lbs { border-top-color: var(--striking); }
+  .kpi-label { font-size: 0.62rem; color: var(--text-light); font-weight: 500; text-transform: uppercase; letter-spacing: 1.5px; }
+  .kpi-value { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 600; margin: 5px 0 3px; line-height: 1; color: var(--dark-brown); }
+  .kpi-sub { font-size: 0.7rem; color: var(--text-light); }
+
+  /* ── SALESPERSON CARDS ─────────────────────────── */
+  .sp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .sp-card {
+    background: var(--white); border-radius: 2px; padding: 18px 20px;
+    box-shadow: 0 1px 6px var(--shadow); border-left: 3px solid var(--beige);
+    transition: transform 0.15s;
+  }
+  .sp-card:hover { transform: translateY(-2px); }
+  .sp-card[data-sp="Jorge"]      { border-left-color: var(--fellows-farms); }
+  .sp-card[data-sp="Juan Pablo"] { border-left-color: var(--light-brown); }
+  .sp-card[data-sp="Jimmy"]      { border-left-color: var(--golden-brown); }
+  .sp-card[data-sp="Nicolas"]    { border-left-color: var(--exotics); }
+  .sp-name { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 600; color: var(--dark-brown); margin-bottom: 2px; }
+  .sp-market { font-size: 0.68rem; color: var(--text-light); margin-bottom: 12px; letter-spacing: 1px; text-transform: uppercase; }
+  .sp-stat { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--sand); font-size: 0.78rem; }
+  .sp-stat:last-child { border-bottom: none; }
+  .sp-stat-label { color: var(--text-mid); }
+  .sp-stat-value { font-weight: 500; }
+  .sp-lb-badge {
+    display: inline-block; margin-top: 10px;
+    background: var(--cream); border: 1px solid var(--sand);
+    border-radius: 2px; padding: 4px 10px;
+    font-size: 0.72rem; color: var(--golden-brown); font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── $/LB SECTION ─────────────────────────────── */
+  .usdlb-section { margin-bottom: 24px; }
+  .usdlb-tabs { display: flex; gap: 2px; margin-bottom: 16px; flex-wrap: wrap; }
+  .usdlb-tab {
+    padding: 7px 18px; border: 1px solid var(--sand); border-radius: 2px;
+    background: var(--white); cursor: pointer; font-family: 'Jost', sans-serif;
+    font-size: 0.72rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--text-light); transition: all 0.15s;
+  }
+  .usdlb-tab:hover { background: var(--cream); }
+  .usdlb-tab.active { background: var(--golden-brown); color: var(--bone); border-color: var(--golden-brown); }
+  .usdlb-panel { display: none; }
+  .usdlb-panel.active { display: block; }
+  .usdlb-card {
+    background: var(--white); border-radius: 2px; padding: 20px 22px;
+    box-shadow: 0 1px 6px var(--shadow);
+  }
+  .usdlb-note {
+    font-size: 0.72rem; color: var(--text-light); margin-top: 14px;
+    padding-top: 12px; border-top: 1px solid var(--sand);
+    font-style: italic;
+  }
+
+  /* ── CHARTS ───────────────────────────────────── */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .chart-card {
+    background: var(--white); border-radius: 2px; padding: 20px 22px;
+    box-shadow: 0 1px 6px var(--shadow);
+  }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-title {
+    font-size: 0.68rem; font-weight: 500; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-light); margin-bottom: 14px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--sand); display: flex; align-items: center; gap: 8px;
+  }
+  .chart-title::before { content: ''; width: 12px; height: 1px; background: var(--light-brown); }
+  .chart-container { position: relative; height: 250px; }
+  .chart-container.tall { height: 300px; }
+
+  /* ── TABLE ────────────────────────────────────── */
+  .table-card {
+    background: var(--white); border-radius: 2px; padding: 20px 22px;
+    box-shadow: 0 1px 6px var(--shadow); overflow: hidden;
+  }
+  .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--sand); flex-wrap: wrap; gap: 8px; }
+  .table-title { font-size: 0.68rem; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: var(--text-light); display: flex; align-items: center; gap: 8px; }
+  .table-title::before { content: ''; width: 12px; height: 1px; background: var(--light-brown); }
+  .table-count { font-size: 0.72rem; color: var(--text-light); background: var(--cream); padding: 3px 10px; border-radius: 2px; }
+  .tbl-clear-btn {
+    padding: 4px 12px; background: transparent; color: var(--exotics);
+    border: 1px solid var(--exotics); border-radius: 2px; font-family: 'Jost', sans-serif;
+    font-size: 0.68rem; font-weight: 500; cursor: pointer; letter-spacing: 1px;
+    text-transform: uppercase; transition: all 0.15s; display: none;
+  }
+  .tbl-clear-btn.visible { display: inline-block; }
+  .tbl-clear-btn:hover { background: var(--exotics); color: var(--white); }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.77rem; }
+  thead th {
+    background: var(--dark-brown); color: var(--bone);
+    padding: 0; text-align: left; font-weight: 500;
+    font-size: 0.65rem; letter-spacing: 1.5px; text-transform: uppercase;
+    white-space: nowrap; position: relative;
+  }
+  /* th inner wrapper */
+  .th-inner {
+    display: flex; align-items: center; gap: 4px;
+    padding: 10px 11px; cursor: pointer; user-select: none;
+    transition: background 0.12s;
+  }
+  .th-inner:hover { background: rgba(255,255,255,0.08); }
+  .th-sort { font-size: 0.6rem; opacity: 0.5; min-width: 10px; }
+  /* th filter button */
+  .th-filter-btn {
+    background: none; border: none; color: var(--bone);
+    cursor: pointer; padding: 10px 8px 10px 2px;
+    font-size: 0.7rem; opacity: 0.45; transition: opacity 0.15s;
+    flex-shrink: 0; line-height: 1;
+  }
+  .th-filter-btn:hover, .th-filter-btn.active { opacity: 1; }
+  .th-filter-btn.active { color: var(--light-brown); }
+  /* column filter dropdown */
+  .col-filter-dd {
+    display: none; position: absolute; top: 100%; left: 0;
+    min-width: 180px; max-width: 240px;
+    background: var(--white); border: 1px solid var(--sand);
+    border-radius: 2px; box-shadow: 0 8px 24px var(--shadow);
+    z-index: 300; max-height: 260px; overflow-y: auto;
+    font-size: 0.8rem; color: var(--text-dark);
+    text-transform: none; letter-spacing: 0;
+  }
+  .col-filter-dd.open { display: block; }
+  .col-filter-search {
+    width: 100%; padding: 8px 10px; border: none;
+    border-bottom: 1px solid var(--sand); font-family: 'Jost', sans-serif;
+    font-size: 0.78rem; outline: none; background: var(--cream);
+    color: var(--text-dark);
+  }
+  .col-filter-option {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 11px; cursor: pointer; transition: background 0.1s;
+    font-weight: 400;
+  }
+  .col-filter-option:hover { background: var(--cream); }
+  .col-filter-option input { accent-color: var(--golden-brown); width: 13px; height: 13px; cursor: pointer; flex-shrink: 0; }
+  .col-filter-option.select-all { border-bottom: 1px solid var(--sand); font-weight: 600; font-size: 0.73rem; color: var(--text-light); }
+  tbody tr { border-bottom: 1px solid var(--sand); transition: background 0.1s; }
+  tbody tr:hover { background: var(--cream); }
+  tbody td { padding: 8px 11px; white-space: nowrap; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 2px; font-size: 0.65rem; font-weight: 500; letter-spacing: 0.5px; }
+  .badge-paid     { background: var(--paid-bg);    color: var(--paid-fg); }
+  .badge-shipped  { background: var(--shipped-bg); color: var(--shipped-fg); }
+  .badge-invoiced { background: var(--inv-bg);     color: var(--inv-fg); }
+  .badge-pending  { background: var(--pend-bg);    color: var(--pend-fg); }
+  .factura-tag { background: var(--cream); border: 1px solid var(--sand); padding: 1px 7px; border-radius: 2px; font-size: 0.7rem; font-family: monospace; }
+  .check { color: var(--fellows-farms); font-weight: 700; }
+  .cross { color: var(--exotics); }
+  .pagination { display: flex; justify-content: center; gap: 4px; margin-top: 14px; flex-wrap: wrap; }
+  .page-btn {
+    padding: 5px 11px; border: 1px solid var(--sand); border-radius: 2px;
+    background: var(--white); cursor: pointer; font-size: 0.75rem;
+    font-family: 'Jost', sans-serif; transition: all 0.1s;
+  }
+  .page-btn:hover, .page-btn.active { background: var(--golden-brown); color: var(--bone); border-color: var(--golden-brown); }
+
+  /* ── RESPONSIVE ───────────────────────────────── */
+  @media (max-width: 900px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .chart-card.full { grid-column: 1; }
+    .goal-grid { grid-template-columns: 1fr 1fr; }
+    .main, .filters-bar, .goal-section, .header { padding-left: 16px; padding-right: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PASSWORD GATE -->
+<div id="pw-gate">
+  <div class="pw-box">
+    <div class="pw-logo">✦</div>
+    <div class="pw-title">Inmaculada Coffee Farms</div>
+    <div class="pw-sub">Sales Dashboard 2026</div>
+    <div class="pw-field-wrap">
+      <input class="pw-input" type="password" id="pw-input"
+        placeholder="Enter password"
+        onkeydown="if(event.key==='Enter') checkPassword()"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="none"
+        spellcheck="false" />
+      <button class="pw-toggle" onclick="togglePwVisibility()" id="pw-eye" title="Show/hide">👁</button>
+    </div>
+    <div class="pw-error" id="pw-error"></div>
+    <button class="pw-btn" onclick="checkPassword()">Access Dashboard</button>
+    <div class="pw-footer">Inmaculada Green · Internal Use Only</div>
+  </div>
+</div>
+
+<div id="dashboard-content">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-brand">
+    <div class="header-icon">✦</div>
+    <div class="header-title">
+      <h1>Inmaculada Coffee Farms</h1>
+      <p>Sales Dashboard 2026 · Salespersons Overview</p>
+    </div>
+  </div>
+  <div class="header-right" id="hdr-count"></div>
+</div>
+
+<!-- GOAL SECTION -->
+<div class="goal-section">
+  <div class="goal-label">2026 Annual Sales Target — USD 2,000,000</div>
+  <div class="goal-grid">
+    <div>
+      <div class="goal-bar-labels">
+        <span>Progress toward goal</span>
+        <span id="goal-pct-label"></span>
+      </div>
+      <div class="goal-bar-track">
+        <div class="goal-bar-fill committed" id="bar-committed" style="width:0%"></div>
+        <div class="goal-bar-fill invoiced"  id="bar-invoiced"  style="width:0%"></div>
+        <div class="goal-bar-fill paid"      id="bar-paid"      style="width:0%"></div>
+      </div>
+      <div class="goal-legend">
+        <div class="goal-legend-item"><div class="goal-legend-dot" style="background:var(--bone)"></div> Committed (Shipped + Invoiced)</div>
+        <div class="goal-legend-item"><div class="goal-legend-dot" style="background:var(--light-brown)"></div> Invoiced</div>
+        <div class="goal-legend-item"><div class="goal-legend-dot" style="background:rgba(255,255,255,0.55)"></div> Collected (COP converted)</div>
+      </div>
+    </div>
+    <div>
+      <div class="goal-stat-label">Committed (USD)</div>
+      <div class="goal-stat-value" id="gs-committed">—</div>
+      <div class="goal-stat-pct" id="gs-committed-pct">—%</div>
+      <div class="goal-stat-sub">Shipped + Invoiced</div>
+    </div>
+    <div>
+      <div class="goal-stat-label">Invoiced (USD)</div>
+      <div class="goal-stat-value" id="gs-invoiced">—</div>
+      <div class="goal-stat-pct" id="gs-invoiced-pct">—%</div>
+      <div class="goal-stat-sub">Has invoice number</div>
+    </div>
+    <div>
+      <div class="goal-stat-label">Collected (COP)</div>
+      <div class="goal-stat-value" id="gs-paid">—</div>
+      <div class="goal-stat-pct" id="gs-paid-pct">—%</div>
+      <div class="goal-stat-sub">Closed & Paid deals</div>
+    </div>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="filters-bar" id="filters-bar">
+  <div class="filter-group">
+    <label>Salesperson</label>
+    <div class="ms-trigger" onclick="toggleDropdown('dd-salesperson',this)">
+      <span id="lbl-salesperson">All</span><span class="arrow">▼</span>
+    </div>
+    <div class="ms-dropdown" id="dd-salesperson"></div>
+  </div>
+  <div class="filter-group">
+    <label>Market</label>
+    <div class="ms-trigger" onclick="toggleDropdown('dd-market',this)">
+      <span id="lbl-market">All</span><span class="arrow">▼</span>
+    </div>
+    <div class="ms-dropdown" id="dd-market"></div>
+  </div>
+  <div class="filter-group">
+    <label>Client</label>
+    <div class="ms-trigger" onclick="toggleDropdown('dd-client',this)">
+      <span id="lbl-client">All</span><span class="arrow">▼</span>
+    </div>
+    <div class="ms-dropdown" id="dd-client"></div>
+  </div>
+  <div class="filter-group">
+    <label>Product Type</label>
+    <div class="ms-trigger" onclick="toggleDropdown('dd-product',this)">
+      <span id="lbl-product">All</span><span class="arrow">▼</span>
+    </div>
+    <div class="ms-dropdown" id="dd-product"></div>
+  </div>
+  <div class="filter-group">
+    <label>Deal Type</label>
+    <div class="ms-trigger" onclick="toggleDropdown('dd-type',this)">
+      <span id="lbl-type">All</span><span class="arrow">▼</span>
+    </div>
+    <div class="ms-dropdown" id="dd-type"></div>
+  </div>
+  <div class="filter-group">
+    <label>Deal Status</label>
+    <div class="ms-trigger" onclick="toggleDropdown('dd-status',this)">
+      <span id="lbl-status">All</span><span class="arrow">▼</span>
+    </div>
+    <div class="ms-dropdown" id="dd-status"></div>
+  </div>
+  <div class="filter-group">
+    <label>Month</label>
+    <div class="ms-trigger" onclick="toggleDropdown('dd-month',this)">
+      <span id="lbl-month">All</span><span class="arrow">▼</span>
+    </div>
+    <div class="ms-dropdown" id="dd-month"></div>
+  </div>
+  <button class="btn-reset" onclick="resetFilters()">Reset All</button>
+</div>
+
+<div class="main">
+
+  <!-- KPI ROW -->
+  <div class="kpi-row" id="kpi-row"></div>
+
+  <!-- SALESPERSON CARDS -->
+  <div class="section-label">Salesperson Performance</div>
+  <div class="sp-grid" id="sp-grid"></div>
+
+  <!-- $/LB SECTION -->
+  <div class="section-label">Avg $/lb — Price Analysis</div>
+  <div class="usdlb-section">
+    <div class="usdlb-tabs">
+      <button class="usdlb-tab active" onclick="switchUsdlbTab('market',this)">By Market</button>
+      <button class="usdlb-tab" onclick="switchUsdlbTab('salesperson',this)">By Salesperson</button>
+      <button class="usdlb-tab" onclick="switchUsdlbTab('client',this)">By Client</button>
+      <button class="usdlb-tab" onclick="switchUsdlbTab('product',this)">By Product Type</button>
+    </div>
+    <div class="usdlb-panel active" id="usdlb-market">
+      <div class="usdlb-card">
+        <div class="chart-container"><canvas id="chart-usdlb-market"></canvas></div>
+        <div class="usdlb-note">Avg $/lb = Total USD revenue ÷ Total pounds sold. Revenue-weighted average reflects actual realized price per pound.</div>
+      </div>
+    </div>
+    <div class="usdlb-panel" id="usdlb-salesperson">
+      <div class="usdlb-card">
+        <div class="chart-container"><canvas id="chart-usdlb-sp"></canvas></div>
+        <div class="usdlb-note">Avg $/lb = Total USD revenue ÷ Total pounds sold per salesperson. Revenue-weighted average reflects actual realized price per pound.</div>
+      </div>
+    </div>
+    <div class="usdlb-panel" id="usdlb-client">
+      <div class="usdlb-card">
+        <div class="chart-container tall"><canvas id="chart-usdlb-client"></canvas></div>
+        <div class="usdlb-note">Avg $/lb = Total USD revenue ÷ Total pounds sold per client. Revenue-weighted average reflects actual realized price per pound.</div>
+      </div>
+    </div>
+    <div class="usdlb-panel" id="usdlb-product">
+      <div class="usdlb-card">
+        <div class="chart-container"><canvas id="chart-usdlb-product"></canvas></div>
+        <div class="usdlb-note">Avg $/lb = Total USD revenue ÷ Total pounds sold per product type. Revenue-weighted average reflects actual realized price per pound.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="section-label">Revenue &amp; Volume Analysis</div>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Revenue by Salesperson (USD)</div>
+      <div class="chart-container"><canvas id="chart-sp-revenue"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Deal Status Breakdown</div>
+      <div class="chart-container"><canvas id="chart-status"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Revenue by Market (USD)</div>
+      <div class="chart-container"><canvas id="chart-market"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Top 15 Clients by Revenue (USD)</div>
+      <div class="chart-container"><canvas id="chart-clients"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Revenue by Product Type (USD)</div>
+      <div class="chart-container"><canvas id="chart-product"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Monthly Revenue (USD)</div>
+      <div class="chart-container"><canvas id="chart-monthly"></canvas></div>
+    </div>
+    <div class="chart-card full">
+      <div class="chart-title">Volume (lbs) by Market &amp; Product Type</div>
+      <div class="chart-container tall"><canvas id="chart-volume"></canvas></div>
+    </div>
+  </div>
+
+  <!-- DEAL TABLE -->
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title">Deal Details</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="tbl-clear-btn" id="tbl-clear-btn" onclick="clearColFilters()">✕ Clear column filters</button>
+        <span class="table-count" id="tbl-count">— records</span>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="deal-table">
+        <thead><tr id="thead-row"></tr></thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /dashboard-content -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DATA is injected via data.js (RAW_DATA, GOAL)
+// ═══════════════════════════════════════════════════════════════════
+
+const MN = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const SP_COLORS = { 'Jorge':'#2e4236','Juan Pablo':'#948149','Jimmy':'#6e5c39','Nicolas':'#af2d00' };
+const PROD_COLORS = {
+  'FELLOWS FARMS':'#2e4236','FELLOWSFARMS':'#2e4236',
+  'EXOTICS':'#af2d00','SIGNATURE':'#af2d00',
+  'STRIKING TERROIR':'#10162b','SUBPRODUCTOS':'#948149',
+  'TCH':'#dfd7c3','FAMILY RESERVE':'#6e5c39','CAMILO TORRES':'#6e5c39',
+  'MARLON ROJAS':'#948149','EL CALAPO':'#e6e2da','EL HORNO':'#dfd7c3',
+  'EL ZAFIRO':'#6e5c39','LA NEGRITA':'#221f20'
+};
+const PAL = ['#6e5c39','#948149','#2e4236','#af2d00','#10162b','#dfd7c3','#e6e2da','#221f20','#b8a880','#4a7a5a','#d4601a','#2e3f5c'];
+
+// ═══════════════════════════════════════════════════════════════════
+// PASSWORD
+// ═══════════════════════════════════════════════════════════════════
+function checkPassword() {
+  const pw = document.getElementById('pw-input').value.trim().toLowerCase();
+  if (pw === 'green2026' || pw === 'inmaculada') {
+    document.getElementById('pw-gate').classList.add('hidden');
+    document.getElementById('dashboard-content').classList.add('unlocked');
+    initDashboard();
+  } else {
+    document.getElementById('pw-error').textContent = 'Incorrect password.';
+    const inp = document.getElementById('pw-input');
+    inp.classList.add('error');
+    setTimeout(() => inp.classList.remove('error'), 400);
+  }
+}
+function togglePwVisibility() {
+  const i = document.getElementById('pw-input');
+  i.type = i.type === 'password' ? 'text' : 'password';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE — single source of truth
+// ACTIVE_* = Set of values that ARE shown (non-empty = filter is on)
+// ═══════════════════════════════════════════════════════════════════
+const ACTIVE = {
+  salesperson: new Set(),   // empty = show all
+  market:      new Set(),
+  client:      new Set(),
+  product:     new Set(),
+  type:        new Set(),
+  status:      new Set(),
+  month:       new Set()
+};
+
+// Column-level filters for the table: key → Set of VALUES TO SHOW
+// (empty = show all, same convention)
+const COL_ACTIVE = {};
+
+// Sort state
+let sortCol = 'USD', sortDir = -1, currentPage = 1;
+const PAGE_SIZE = 25;
+
+// ═══════════════════════════════════════════════════════════════════
+// CORE FILTER FUNCTION
+// A record passes if its value is IN the active set (or set is empty)
+// ═══════════════════════════════════════════════════════════════════
+function passes(record) {
+  if (ACTIVE.salesperson.size && !ACTIVE.salesperson.has(record.SALESPERSON))   return false;
+  if (ACTIVE.market.size      && !ACTIVE.market.has(record.MERCADO))            return false;
+  if (ACTIVE.client.size      && !ACTIVE.client.has(record.ORDERED_BY))         return false;
+  if (ACTIVE.product.size     && !ACTIVE.product.has(record.PRODUCT_TYPE))      return false;
+  if (ACTIVE.type.size        && !ACTIVE.type.has(record.TYPE))                 return false;
+  if (ACTIVE.status.size      && !ACTIVE.status.has(record.DEAL_STATUS))        return false;
+  if (ACTIVE.month.size       && !ACTIVE.month.has(String(record.MONTH)))       return false;
+  return true;
+}
+
+function getFiltered()    { return RAW_DATA.filter(passes); }
+function getTableData()   {
+  let d = getFiltered();
+  // apply column filters
+  for (const [key, set] of Object.entries(COL_ACTIVE)) {
+    if (set.size === 0) continue;
+    d = d.filter(r => set.has(colDisplayVal(r, key)));
+  }
+  return d;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TOP-BAR DROPDOWNS
+// ═══════════════════════════════════════════════════════════════════
+function buildTopDropdown(ddId, vals, stateKey, labelId) {
+  // initialise: all values are active
+  ACTIVE[stateKey] = new Set(); // empty = show all
+
+  const dd = document.getElementById(ddId);
+  dd.innerHTML = '';
+
+  // Select All row
+  const allRow = document.createElement('div');
+  allRow.className = 'ms-option select-all';
+  const allChk = document.createElement('input');
+  allChk.type = 'checkbox';
+  allChk.id = 'top-all-' + ddId;
+  allChk.checked = true;
+  allRow.appendChild(allChk);
+  allRow.appendChild(document.createTextNode(' Select All'));
+  dd.appendChild(allRow);
+
+  // Value rows
+  vals.forEach(v => {
+    const row = document.createElement('div');
+    row.className = 'ms-option';
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.dataset.v = v;
+    chk.checked = true;
+    row.appendChild(chk);
+    row.appendChild(document.createTextNode(' ' + v));
+    dd.appendChild(row);
+  });
+
+  // Event: individual value
+  dd.querySelectorAll('input[data-v]').forEach(chk => {
+    chk.addEventListener('change', () => {
+      // Rebuild active set from checked boxes
+      ACTIVE[stateKey] = new Set(
+        [...dd.querySelectorAll('input[data-v]')]
+          .filter(c => c.checked)
+          .map(c => c.dataset.v)
+      );
+      // All-checked = empty set (show all); some unchecked = use set
+      const allChecked = ACTIVE[stateKey].size === vals.length;
+      if (allChecked) ACTIVE[stateKey] = new Set();
+      // Sync Select All checkbox
+      document.getElementById('top-all-' + ddId).checked = allChecked;
+      updateTopLabel(labelId, stateKey, vals);
+      renderAll();
+    });
+  });
+
+  // Event: Select All
+  allChk.addEventListener('change', e => {
+    const checked = e.target.checked;
+    dd.querySelectorAll('input[data-v]').forEach(c => { c.checked = checked; });
+    ACTIVE[stateKey] = new Set(); // checked = show all = empty set
+    if (!checked) {
+      // uncheck all = show nothing = every value is "active filter"
+      ACTIVE[stateKey] = new Set(vals);
+      // But "active filter with all values" = same as no filter visually
+      // Actually we want to SHOW NOTHING — set to impossible value
+      ACTIVE[stateKey] = new Set(['__NONE__']);
+    }
+    updateTopLabel(labelId, stateKey, vals);
+    renderAll();
+  });
+}
+
+function updateTopLabel(labelId, stateKey, vals) {
+  const el = document.getElementById(labelId);
+  if (!el) return;
+  const active = ACTIVE[stateKey];
+  if (active.size === 0) { el.innerHTML = 'All'; return; }
+  if (active.has('__NONE__')) { el.innerHTML = '<span class="count-badge">0/' + vals.length + '</span>'; return; }
+  el.innerHTML = '<span class="count-badge">' + active.size + '/' + vals.length + '</span>';
+}
+
+function toggleDropdown(id, triggerEl) {
+  document.querySelectorAll('.ms-dropdown.open').forEach(d => {
+    if (d.id !== id) {
+      d.classList.remove('open');
+      const fg = d.closest('.filter-group');
+      if (fg) fg.querySelector('.ms-trigger').classList.remove('open');
+    }
+  });
+  const dd = document.getElementById(id);
+  const nowOpen = dd.classList.toggle('open');
+  triggerEl.classList.toggle('open', nowOpen);
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.filter-group') && !e.target.closest('thead th')) {
+    document.querySelectorAll('.ms-dropdown.open').forEach(d => d.classList.remove('open'));
+    document.querySelectorAll('.ms-trigger.open').forEach(t => t.classList.remove('open'));
+    document.querySelectorAll('.col-filter-dd.open').forEach(d => d.classList.remove('open'));
+    document.querySelectorAll('.th-filter-btn.active-open').forEach(b => b.classList.remove('active-open'));
+  }
+});
+
+function resetFilters() {
+  // Reset top filters
+  Object.keys(ACTIVE).forEach(k => { ACTIVE[k] = new Set(); });
+  document.querySelectorAll('.ms-dropdown input[type=checkbox]').forEach(c => { c.checked = true; });
+  ['lbl-salesperson','lbl-market','lbl-client','lbl-product','lbl-type','lbl-status','lbl-month']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = 'All'; });
+  document.querySelectorAll('.ms-dropdown.open').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.ms-trigger.open').forEach(t => t.classList.remove('open'));
+
+  // Reset column filters
+  Object.keys(COL_ACTIVE).forEach(k => { COL_ACTIVE[k] = new Set(); });
+  document.querySelectorAll('.th-filter-btn').forEach(b => {
+    b.classList.remove('active'); b.textContent = '▾';
+  });
+  document.getElementById('tbl-clear-btn').classList.remove('visible');
+
+  currentPage = 1;
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// KPI
+// ═══════════════════════════════════════════════════════════════════
+function renderKPI(data) {
+  const totalUSD  = data.reduce((s,r) => s + r.USD, 0);
+  const paidUSD   = data.filter(r => r.IS_PAID).reduce((s,r) => s + r.USD, 0);
+  const shipUSD   = data.filter(r => r.CAN_SHIP && !r.IS_PAID).reduce((s,r) => s + r.USD, 0);
+  const invUSD    = data.filter(r => r.HAS_INVOICE && !r.CAN_SHIP).reduce((s,r) => s + r.USD, 0);
+  const pendUSD   = data.filter(r => !r.HAS_INVOICE && !r.CAN_SHIP).reduce((s,r) => s + r.USD, 0);
+  const totalLbs  = data.reduce((s,r) => s + r.POUNDS, 0);
+  const totalKg   = data.reduce((s,r) => s + r.Kg, 0);
+  const avgLb     = totalLbs > 0 ? totalUSD / totalLbs : 0;
+  const $  = n => '$' + Math.round(n).toLocaleString('en-US');
+  const N  = n => n.toLocaleString('en-US', {maximumFractionDigits:0});
+  document.getElementById('kpi-row').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Total Revenue</div><div class="kpi-value">${$(totalUSD)}</div><div class="kpi-sub">USD · ${data.length} deals</div></div>
+    <div class="kpi-card k-paid"><div class="kpi-label">Closed & Paid</div><div class="kpi-value">${$(paidUSD)}</div><div class="kpi-sub">Collected deals</div></div>
+    <div class="kpi-card k-shipped"><div class="kpi-label">Shipped</div><div class="kpi-value">${$(shipUSD)}</div><div class="kpi-sub">In transit / delivered</div></div>
+    <div class="kpi-card k-invoiced"><div class="kpi-label">Invoiced</div><div class="kpi-value">${$(invUSD)}</div><div class="kpi-sub">Has invoice, not shipped</div></div>
+    <div class="kpi-card k-pending"><div class="kpi-label">Pending</div><div class="kpi-value">${$(pendUSD)}</div><div class="kpi-sub">Commitments / pipeline</div></div>
+    <div class="kpi-card k-lbs"><div class="kpi-label">Total Volume</div><div class="kpi-value">${N(totalLbs)}</div><div class="kpi-sub">lbs · ${N(totalKg)} kg</div></div>
+    <div class="kpi-card"><div class="kpi-label">Avg $/lb</div><div class="kpi-value">${avgLb.toFixed(2)}</div><div class="kpi-sub">Revenue-weighted avg price</div></div>`;
+  document.getElementById('hdr-count').textContent = data.length + ' records';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GOAL BAR
+// ═══════════════════════════════════════════════════════════════════
+function renderGoal(data) {
+  const comm  = data.filter(r => r.CAN_SHIP || r.HAS_INVOICE).reduce((s,r) => s+r.USD,0);
+  const inv   = data.filter(r => r.HAS_INVOICE).reduce((s,r) => s+r.USD,0);
+  const paid  = data.filter(r => r.IS_PAID).reduce((s,r) => s+r.USD,0);
+  const pct   = n => Math.min(100,(n/GOAL)*100).toFixed(1);
+  const $     = n => '$'+Math.round(n).toLocaleString('en-US');
+  document.getElementById('bar-committed').style.width = pct(comm)+'%';
+  document.getElementById('bar-invoiced').style.width  = pct(inv)+'%';
+  document.getElementById('bar-paid').style.width      = pct(paid)+'%';
+  document.getElementById('goal-pct-label').textContent = pct(comm)+'% committed';
+  document.getElementById('gs-committed').textContent     = $(comm);
+  document.getElementById('gs-committed-pct').textContent = pct(comm)+'% of goal';
+  document.getElementById('gs-invoiced').textContent      = $(inv);
+  document.getElementById('gs-invoiced-pct').textContent  = pct(inv)+'% of goal';
+  document.getElementById('gs-paid').textContent          = $(paid);
+  document.getElementById('gs-paid-pct').textContent      = pct(paid)+'% of goal';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SALESPERSON CARDS
+// ═══════════════════════════════════════════════════════════════════
+function renderSPCards(data) {
+  const sps = {};
+  data.forEach(r => {
+    const sp = r.SALESPERSON || 'Unknown';
+    if (!sps[sp]) sps[sp] = {usd:0,lbs:0,deals:0,markets:new Set()};
+    sps[sp].usd   += r.USD;
+    sps[sp].lbs   += r.POUNDS;
+    sps[sp].deals += 1;
+    sps[sp].markets.add(r.MERCADO);
+  });
+  const $  = n => '$'+Math.round(n).toLocaleString('en-US');
+  const N  = n => n.toLocaleString('en-US',{maximumFractionDigits:0});
+  document.getElementById('sp-grid').innerHTML = Object.entries(sps)
+    .sort((a,b) => b[1].usd - a[1].usd)
+    .map(([sp,d]) => {
+      const avg = d.lbs > 0 ? d.usd/d.lbs : 0;
+      return `<div class="sp-card" data-sp="${sp}">
+        <div class="sp-name">${sp}</div>
+        <div class="sp-market">${[...d.markets].filter(x=>x&&x!='Unknown').join(' · ')}</div>
+        <div class="sp-stat"><span class="sp-stat-label">Revenue</span><span class="sp-stat-value">${$(d.usd)}</span></div>
+        <div class="sp-stat"><span class="sp-stat-label">Volume</span><span class="sp-stat-value">${N(d.lbs)} lbs</span></div>
+        <div class="sp-stat"><span class="sp-stat-label">Deals</span><span class="sp-stat-value">${d.deals}</span></div>
+        <div class="sp-lb-badge">Avg $/lb: $${avg.toFixed(2)}</div>
+      </div>`;
+    }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════════════════════════
+const CI = {};
+function destroyChart(id) { if (CI[id]) { CI[id].destroy(); delete CI[id]; } }
+
+function mkBar(id, labels, values, colors, yFmt) {
+  destroyChart(id);
+  const ctx = document.getElementById(id); if (!ctx) return;
+  CI[id] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data:values, backgroundColor:colors||PAL, borderWidth:0, borderRadius:2 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c => (yFmt||'$')+c.parsed.y.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{color:'#6e5c39',font:{size:11}} },
+        y:{ grid:{color:'#e0d8cc'}, ticks:{color:'#948149',font:{size:11},callback:v=>(yFmt||'$')+v.toLocaleString()} }
+      }
+    }
+  });
+}
+function mkHBar(id, labels, values, colors, xFmt) {
+  destroyChart(id);
+  const ctx = document.getElementById(id); if (!ctx) return;
+  CI[id] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ data:values, backgroundColor:colors||PAL, borderWidth:0, borderRadius:2 }] },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: c => (xFmt||'$')+c.parsed.x.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) } } },
+      scales:{
+        x:{ grid:{color:'#e0d8cc'}, ticks:{color:'#948149',font:{size:11},callback:v=>(xFmt||'$')+v.toLocaleString()} },
+        y:{ grid:{display:false}, ticks:{color:'#6e5c39',font:{size:11}} }
+      }
+    }
+  });
+}
+function mkDoughnut(id, labels, values, colors) {
+  destroyChart(id);
+  const ctx = document.getElementById(id); if (!ctx) return;
+  CI[id] = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data:values, backgroundColor:colors||PAL, borderWidth:2, borderColor:'#fdfcfa' }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'right',labels:{color:'#6e5c39',font:{size:11},padding:10,boxWidth:12}},
+        tooltip:{ callbacks:{ label: c=>' $'+c.parsed.toLocaleString() } } }
+    }
+  });
+}
+
+function grp(data, key) {
+  const m = {};
+  data.forEach(r => { const k=r[key]||'?'; m[k]=(m[k]||0)+r.USD; });
+  return Object.entries(m).sort((a,b)=>b[1]-a[1]);
+}
+function grpLb(data, key) {
+  const m = {};
+  data.forEach(r => {
+    const k = r[key]||'?';
+    if (!m[k]) m[k]={usd:0,lbs:0};
+    m[k].usd += r.USD; m[k].lbs += r.POUNDS;
+  });
+  return Object.entries(m).filter(([,v])=>v.lbs>0)
+    .map(([k,v])=>({k, avg:v.usd/v.lbs, usd:v.usd}))
+    .sort((a,b)=>b.avg-a.avg);
+}
+
+function renderCharts(data) {
+  // SP revenue
+  const sp = grp(data,'SALESPERSON');
+  mkBar('chart-sp-revenue', sp.map(x=>x[0]), sp.map(x=>x[1]), sp.map(x=>SP_COLORS[x[0]]||PAL[0]));
+
+  // Status doughnut
+  const st = grp(data,'DEAL_STATUS');
+  mkDoughnut('chart-status', st.map(x=>x[0]), st.map(x=>x[1]), ['#2e4236','#6e5c39','#948149','#af2d00']);
+
+  // Market
+  const mk = grp(data,'MERCADO');
+  mkBar('chart-market', mk.map(x=>x[0]), mk.map(x=>x[1]), mk.map((_,i)=>PAL[i%PAL.length]));
+
+  // Top 15 clients
+  const cl = grp(data,'ORDERED_BY').slice(0,15);
+  mkHBar('chart-clients', cl.map(x=>x[0]), cl.map(x=>x[1]), cl.map((_,i)=>PAL[i%PAL.length]));
+
+  // Product type
+  const pt = grp(data,'PRODUCT_TYPE');
+  mkBar('chart-product', pt.map(x=>x[0]), pt.map(x=>x[1]), pt.map(x=>PROD_COLORS[x[0]]||PAL[0]));
+
+  // Monthly
+  const mo = {}; for(let i=1;i<=12;i++) mo[i]=0;
+  data.forEach(r => { if(r.MONTH) mo[r.MONTH]+=r.USD; });
+  mkBar('chart-monthly', Object.keys(mo).map(m=>MN[m]), Object.values(mo), Array(12).fill('#6e5c39'));
+
+  // Volume stacked
+  const markets = [...new Set(data.map(r=>r.MERCADO).filter(Boolean))].sort();
+  const prods   = [...new Set(data.map(r=>r.PRODUCT_TYPE).filter(Boolean))].sort();
+  const volDS   = prods.map((pt,i) => ({
+    label: pt,
+    data: markets.map(m => data.filter(r=>r.MERCADO===m&&r.PRODUCT_TYPE===pt).reduce((s,r)=>s+r.POUNDS,0)),
+    backgroundColor: PROD_COLORS[pt]||PAL[i%PAL.length],
+    borderWidth:0, borderRadius:2
+  }));
+  destroyChart('chart-volume');
+  const vc = document.getElementById('chart-volume');
+  if (vc) CI['chart-volume'] = new Chart(vc, {
+    type:'bar', data:{labels:markets, datasets:volDS},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{color:'#6e5c39',font:{size:10},padding:8,boxWidth:10}},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toLocaleString()+' lbs'}} },
+      scales:{
+        x:{stacked:true,grid:{display:false},ticks:{color:'#6e5c39',font:{size:11}}},
+        y:{stacked:true,grid:{color:'#e0d8cc'},ticks:{color:'#948149',font:{size:11},callback:v=>v.toLocaleString()}}
+      }
+    }
+  });
+}
+
+function renderUsdLbCharts(data) {
+  const mkt = grpLb(data,'MERCADO');
+  mkBar('chart-usdlb-market', mkt.map(x=>x.k), mkt.map(x=>+x.avg.toFixed(2)), mkt.map((_,i)=>PAL[i%PAL.length]));
+
+  const sp = grpLb(data,'SALESPERSON');
+  mkBar('chart-usdlb-sp', sp.map(x=>x.k), sp.map(x=>+x.avg.toFixed(2)), sp.map(x=>SP_COLORS[x.k]||PAL[0]));
+
+  const cl = grpLb(data,'ORDERED_BY').sort((a,b)=>b.usd-a.usd).slice(0,15).sort((a,b)=>b.avg-a.avg);
+  mkHBar('chart-usdlb-client', cl.map(x=>x.k), cl.map(x=>+x.avg.toFixed(2)), cl.map((_,i)=>PAL[i%PAL.length]));
+
+  const pt = grpLb(data,'PRODUCT_TYPE');
+  mkBar('chart-usdlb-product', pt.map(x=>x.k), pt.map(x=>+x.avg.toFixed(2)), pt.map(x=>PROD_COLORS[x.k]||PAL[0]));
+}
+
+function switchUsdlbTab(key, btn) {
+  document.querySelectorAll('.usdlb-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.usdlb-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('usdlb-'+key).classList.add('active');
+  renderUsdLbCharts(getFiltered());
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TABLE — column definitions
+// ═══════════════════════════════════════════════════════════════════
+const COLS = [
+  { key:'ORDERED_BY',   label:'Client',       cat:true  },
+  { key:'SALESPERSON',  label:'Salesperson',  cat:true  },
+  { key:'MERCADO',      label:'Market',       cat:true  },
+  { key:'REGION',       label:'Region',       cat:true  },
+  { key:'PRODUCT_TYPE', label:'Product Type', cat:true  },
+  { key:'PRODUCT_LINE', label:'Line',         cat:true  },
+  { key:'VARIETY',      label:'Variety',      cat:true  },
+  { key:'TYPE',         label:'Deal Type',    cat:true  },
+  { key:'Kg',           label:'Kg',           cat:false },
+  { key:'POUNDS',       label:'Lbs',          cat:false },
+  { key:'USD_PER_LB',   label:'$/lb',         cat:false },
+  { key:'USD',          label:'USD',          cat:false },
+  { key:'COP',          label:'COP (paid)',   cat:false },
+  { key:'FACTURA',      label:'Invoice #',    cat:false },
+  { key:'IS_PAID',      label:'Paid',         cat:true  },
+  { key:'CAN_SHIP',     label:'Shipped',      cat:true  },
+  { key:'DEAL_STATUS',  label:'Status',       cat:true  },
+  { key:'Invoice_date', label:'Invoice Date', cat:false },
+  { key:'MONTH',        label:'Month',        cat:true  },
+];
+
+// Initialise COL_ACTIVE for every filterable column
+COLS.filter(c=>c.cat).forEach(c => { COL_ACTIVE[c.key] = new Set(); });
+
+function colDisplayVal(r, key) {
+  if (key==='IS_PAID')  return r.IS_PAID  ? 'Yes' : 'No';
+  if (key==='CAN_SHIP') return r.CAN_SHIP ? 'Yes' : 'No';
+  if (key==='MONTH')    return r.MONTH ? MN[r.MONTH] : '-';
+  const v = r[key];
+  return (v === null || v === undefined || v === '') ? '-' : String(v);
+}
+
+function renderCell(r, key) {
+  switch(key) {
+    case 'ORDERED_BY':   return `<td style="font-weight:500">${r.ORDERED_BY}</td>`;
+    case 'SALESPERSON':  return `<td>${r.SALESPERSON}</td>`;
+    case 'MERCADO':      return `<td>${r.MERCADO}</td>`;
+    case 'REGION':       return `<td style="color:var(--text-light)">${r.REGION}</td>`;
+    case 'PRODUCT_TYPE': return `<td>${r.PRODUCT_TYPE}</td>`;
+    case 'PRODUCT_LINE': return `<td style="color:var(--text-light)">${r.PRODUCT_LINE}</td>`;
+    case 'VARIETY':      return `<td style="color:var(--text-light)">${r.VARIETY}</td>`;
+    case 'TYPE':         return `<td style="color:var(--text-light)">${r.TYPE}</td>`;
+    case 'Kg':           return `<td>${r.Kg?.toLocaleString('en-US',{maximumFractionDigits:1})}</td>`;
+    case 'POUNDS':       return `<td>${r.POUNDS?.toLocaleString('en-US',{maximumFractionDigits:1})}</td>`;
+    case 'USD_PER_LB':   return `<td style="font-weight:500;color:var(--golden-brown)">$${r.USD_PER_LB?.toFixed(2)}</td>`;
+    case 'USD':          return `<td style="font-weight:500">$${r.USD?.toLocaleString('en-US',{maximumFractionDigits:0})}</td>`;
+    case 'COP':          return `<td>${r.COP>0?r.COP.toLocaleString('en-US',{maximumFractionDigits:0}):'-'}</td>`;
+    case 'FACTURA':      return `<td>${r.FACTURA?`<span class="factura-tag">${r.FACTURA}</span>`:'-'}</td>`;
+    case 'IS_PAID':      return `<td>${r.IS_PAID?'<span class="check">✓</span>':'<span class="cross">✗</span>'}</td>`;
+    case 'CAN_SHIP':     return `<td>${r.CAN_SHIP?'<span class="check">✓</span>':'<span class="cross">✗</span>'}</td>`;
+    case 'DEAL_STATUS':  return `<td>${statusBadge(r.DEAL_STATUS)}</td>`;
+    case 'Invoice_date': return `<td style="color:var(--text-light)">${r.Invoice_date||'-'}</td>`;
+    case 'MONTH':        return `<td style="color:var(--text-light)">${r.MONTH?MN[r.MONTH]:'-'}</td>`;
+    default:             return `<td>-</td>`;
+  }
+}
+function statusBadge(s) {
+  if (s==='Closed & Paid') return `<span class="badge badge-paid">Paid</span>`;
+  if (s==='Shipped')       return `<span class="badge badge-shipped">Shipped</span>`;
+  if (s==='Invoiced')      return `<span class="badge badge-invoiced">Invoiced</span>`;
+  return `<span class="badge badge-pending">Pending</span>`;
+}
+
+// ── Build header row ──────────────────────────────────────────────
+function buildTableHeader() {
+  const tr = document.getElementById('thead-row');
+  tr.innerHTML = '';
+  COLS.forEach(col => {
+    const th = document.createElement('th');
+
+    // Sort label
+    const inner = document.createElement('div');
+    inner.className = 'th-inner';
+    inner.innerHTML = col.label + `<span class="th-sort" id="si-${col.key}"></span>`;
+    inner.addEventListener('click', () => tblSort(col.key));
+    th.appendChild(inner);
+
+    // Filter button (only categorical)
+    if (col.cat) {
+      const btn = document.createElement('button');
+      btn.className = 'th-filter-btn';
+      btn.id = 'tfb-' + col.key;
+      btn.textContent = '▾';
+      btn.title = 'Filter ' + col.label;
+      btn.addEventListener('click', e => { e.stopPropagation(); toggleColDD(col.key); });
+      const dd = document.createElement('div');
+      dd.className = 'col-filter-dd';
+      dd.id = 'cdd-' + col.key;
+      th.appendChild(btn);
+      th.appendChild(dd);
+    }
+    tr.appendChild(th);
+  });
+}
+
+// ── Column filter dropdown ────────────────────────────────────────
+function toggleColDD(key) {
+  const dd = document.getElementById('cdd-' + key);
+  const isOpen = dd.classList.contains('open');
+  // close all
+  document.querySelectorAll('.col-filter-dd.open').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.th-filter-btn.active-open').forEach(b => b.classList.remove('active-open'));
+  if (!isOpen) {
+    fillColDD(key);
+    dd.classList.add('open');
+    document.getElementById('tfb-'+key).classList.add('active-open');
+  }
+}
+
+function fillColDD(key) {
+  const dd = document.getElementById('cdd-' + key);
+  dd.innerHTML = '';
+
+  // Search box
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.placeholder = 'Search…'; inp.className = 'col-filter-search';
+  inp.addEventListener('input', () => fillColOpts(key, inp.value));
+  dd.appendChild(inp);
+
+  const optsWrap = document.createElement('div');
+  optsWrap.id = 'copts-' + key;
+  dd.appendChild(optsWrap);
+  fillColOpts(key, '');
+  setTimeout(() => inp.focus(), 40);
+}
+
+function fillColOpts(key, search) {
+  const wrap = document.getElementById('copts-' + key);
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  // Derive unique values from currently top-filtered data
+  const base = getFiltered();
+  const term = search.trim().toLowerCase();
+  let vals = [...new Set(base.map(r => colDisplayVal(r, key)))]
+    .filter(v => v && v !== '-')
+    .sort((a,b) => a.localeCompare(b));
+  if (term) vals = vals.filter(v => v.toLowerCase().includes(term));
+
+  const activeSet = COL_ACTIVE[key]; // values that are SHOWN (empty = show all)
+
+  // Select All
+  const allRow = document.createElement('div');
+  allRow.className = 'col-filter-option select-all';
+  const allChk = document.createElement('input');
+  allChk.type = 'checkbox';
+  allChk.checked = activeSet.size === 0; // empty = all selected
+  allChk.addEventListener('change', e => {
+    if (e.target.checked) {
+      COL_ACTIVE[key] = new Set(); // show all
+    } else {
+      COL_ACTIVE[key] = new Set(['__NONE__']); // show nothing
+    }
+    fillColOpts(key, search);
+    syncColFilterBtn(key);
+    currentPage = 1;
+    renderTable(getTableData());
+  });
+  allRow.appendChild(allChk);
+  allRow.appendChild(document.createTextNode(' Select All'));
+  wrap.appendChild(allRow);
+
+  vals.forEach(v => {
+    const row = document.createElement('div');
+    row.className = 'col-filter-option';
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    // checked = this value is visible
+    // If activeSet empty = all visible. If has values, only those are visible.
+    chk.checked = (activeSet.size === 0) || activeSet.has(v);
+    chk.addEventListener('change', e => {
+      // Rebuild active set: collect all currently checked values
+      const allChkEls = wrap.querySelectorAll('input[data-v]');
+      const checked = [...allChkEls].filter(c=>c.checked).map(c=>c.dataset.v);
+      if (checked.length === vals.length) {
+        COL_ACTIVE[key] = new Set(); // all checked = no filter
+      } else if (checked.length === 0) {
+        COL_ACTIVE[key] = new Set(['__NONE__']);
+      } else {
+        COL_ACTIVE[key] = new Set(checked);
+      }
+      // Sync Select All checkbox
+      wrap.querySelector('.select-all input').checked = COL_ACTIVE[key].size === 0;
+      syncColFilterBtn(key);
+      currentPage = 1;
+      renderTable(getTableData());
+    });
+    chk.dataset.v = v;
+    row.appendChild(chk);
+    row.appendChild(document.createTextNode(' ' + v));
+    wrap.appendChild(row);
+  });
+}
+
+function syncColFilterBtn(key) {
+  const btn = document.getElementById('tfb-' + key);
+  if (!btn) return;
+  const on = COL_ACTIVE[key] && COL_ACTIVE[key].size > 0;
+  btn.classList.toggle('active', on);
+  btn.textContent = on ? '◆' : '▾';
+  const anyOn = Object.values(COL_ACTIVE).some(s=>s.size>0);
+  const clearBtn = document.getElementById('tbl-clear-btn');
+  if (clearBtn) clearBtn.classList.toggle('visible', anyOn);
+}
+
+function clearColFilters() {
+  COLS.filter(c=>c.cat).forEach(c => { COL_ACTIVE[c.key] = new Set(); });
+  COLS.filter(c=>c.cat).forEach(c => {
+    const btn = document.getElementById('tfb-'+c.key);
+    if (btn) { btn.classList.remove('active'); btn.textContent='▾'; }
+  });
+  document.getElementById('tbl-clear-btn').classList.remove('visible');
+  currentPage = 1;
+  renderTable(getTableData());
+}
+
+// ── Sort ──────────────────────────────────────────────────────────
+function tblSort(col) {
+  sortDir = (sortCol === col) ? sortDir * -1 : -1;
+  sortCol = col;
+  COLS.forEach(c => {
+    const el = document.getElementById('si-' + c.key);
+    if (el) el.textContent = (c.key === col) ? (sortDir===1?' ↑':' ↓') : '';
+  });
+  currentPage = 1;
+  renderTable(getTableData());
+}
+
+// ── Render table rows ─────────────────────────────────────────────
+function renderTable(data) {
+  const sorted = [...data].sort((a,b) => {
+    let av = a[sortCol] ?? '', bv = b[sortCol] ?? '';
+    if (typeof av === 'number') return (av - bv) * sortDir;
+    return String(av).localeCompare(String(bv)) * sortDir;
+  });
+  const total = sorted.length;
+  const pages = Math.ceil(total / PAGE_SIZE) || 1;
+  const paged = sorted.slice((currentPage-1)*PAGE_SIZE, currentPage*PAGE_SIZE);
+  document.getElementById('tbl-count').textContent = total + ' records';
+  document.getElementById('table-body').innerHTML =
+    paged.map(r => `<tr>${COLS.map(c => renderCell(r,c.key)).join('')}</tr>`).join('');
+
+  const pg = document.getElementById('pagination');
+  pg.innerHTML = '';
+  const maxBtns = 10;
+  for (let i=1; i<=Math.min(pages,maxBtns); i++) {
+    const btn = document.createElement('button');
+    btn.className = 'page-btn' + (i===currentPage?' active':'');
+    btn.textContent = i;
+    btn.onclick = () => { currentPage=i; renderTable(data); };
+    pg.appendChild(btn);
+  }
+  if (pages > maxBtns) {
+    const sp = document.createElement('span');
+    sp.style.cssText='font-size:0.72rem;color:var(--text-light);padding:5px 8px;';
+    sp.textContent = '… '+pages+' pages';
+    pg.appendChild(sp);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN RENDER — called whenever any filter changes
+// ═══════════════════════════════════════════════════════════════════
+function renderAll() {
+  const data = getFiltered();   // respects top-bar filters
+  currentPage = 1;
+  renderKPI(data);
+  renderGoal(data);
+  renderSPCards(data);
+  renderUsdLbCharts(data);
+  renderCharts(data);
+  renderTable(getTableData()); // also respects column filters
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+function initDashboard() {
+  const uniq = key => [...new Set(RAW_DATA.map(r=>r[key]).filter(v=>v!=null&&v!=''))].sort();
+  buildTopDropdown('dd-salesperson', uniq('SALESPERSON'),  'salesperson', 'lbl-salesperson');
+  buildTopDropdown('dd-market',      uniq('MERCADO'),      'market',      'lbl-market');
+  buildTopDropdown('dd-client',      uniq('ORDERED_BY'),   'client',      'lbl-client');
+  buildTopDropdown('dd-product',     uniq('PRODUCT_TYPE'), 'product',     'lbl-product');
+  buildTopDropdown('dd-type',        uniq('TYPE'),         'type',        'lbl-type');
+  buildTopDropdown('dd-status',      uniq('DEAL_STATUS'),  'status',      'lbl-status');
+  buildTopDropdown('dd-month',
+    [...new Set(RAW_DATA.map(r=>String(r.MONTH)).filter(v=>v&&v!='null'))]
+      .sort((a,b)=>+a-+b),
+    'month', 'lbl-month');
+  buildTableHeader();
+  renderAll();
+}
+</script>
+</body>
+</html>
